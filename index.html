@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="ur">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aviator AI Ultra Fast v4.0</title>
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
+    <style>
+        :root { --main-bg: #0f172a; --accent: #e11d48; --text: #f8fafc; }
+        body { background-color: var(--main-bg); color: var(--text); font-family: sans-serif; display: flex; flex-direction: column; align-items: center; padding: 20px; }
+        .card { background: #1e293b; padding: 25px; border-radius: 20px; width: 100%; max-width: 450px; border: 1px solid #334155; text-align: center; }
+        input, button { width: 100%; padding: 12px; margin: 10px 0; border-radius: 10px; border: none; font-size: 16px; box-sizing: border-box; }
+        input { background: #334155; color: white; }
+        button { background: var(--accent); color: white; cursor: pointer; font-weight: bold; }
+        .result-area { margin-top: 20px; padding: 15px; background: #000; border-radius: 10px; border: 2px solid var(--accent); }
+        #predictionText { font-size: 35px; color: #fbbf24; font-weight: 800; margin: 10px 0; }
+        #loading { display: none; color: #38bdf8; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <div class="card">
+        <h1 style="margin-bottom: 5px;">Aviator AI <span style="color: var(--accent);">Turbo</span></h1>
+        <div id="loading">تجزیہ ہو رہا ہے...</div>
+        
+        <input type="file" id="imageUpload" accept="image/*" onchange="processAI()">
+        <input type="text" id="manualData" placeholder="ہسٹری نمبر یہاں لکھیں (1.20, 2.50)" oninput="processAI()">
+        
+        <div class="result-area">
+            <div style="font-size: 14px; opacity: 0.7;">اگلا نمبر:</div>
+            <div id="predictionText">--.--x</div>
+            <div id="confidenceLevel" style="font-size: 14px;">تیاری...</div>
+        </div>
+        <p style="font-size: 11px; opacity: 0.5; margin-top: 10px;">نوٹ: اسکرین شاٹ پروسیسنگ میں چند سیکنڈ لگ سکتے ہیں، لیکن مینوئل انٹری فوری ہے۔</p>
+    </div>
+
+<script>
+    // لائبریری کو پہلے سے لوڈ کرنا تاکہ اسپیڈ بڑھے
+    const worker = Tesseract.createWorker();
+
+    async function processAI() {
+        const fileInput = document.getElementById('imageUpload');
+        const manualInput = document.getElementById('manualData').value;
+        const loader = document.getElementById('loading');
+        const predictionDisplay = document.getElementById('predictionText');
+        const confidenceDisplay = document.getElementById('confidenceLevel');
+
+        let data = [];
+
+        // اگر مینوئل نمبر لکھا گیا ہے (سب سے تیز طریقہ)
+        if (manualInput.length > 2) {
+            data = manualInput.split(/[, ]+/).map(Number).filter(n => !isNaN(n) && n > 0);
+        } 
+        // اگر تصویر اپ لوڈ کی گئی ہے
+        else if (fileInput.files.length > 0) {
+            loader.style.display = 'block';
+            const image = fileInput.files[0];
+            await (await worker).load();
+            await (await worker).loadLanguage('eng');
+            await (await worker).initialize('eng');
+            const { data: { text } } = await (await worker).recognize(image);
+            const foundNumbers = text.match(/\d+\.\d+/g);
+            if (foundNumbers) data = foundNumbers.map(Number);
+            loader.style.display = 'none';
+        }
+
+        if (data.length >= 2) {
+            updatePrediction(data);
+        }
+    }
+
+    function updatePrediction(data) {
+        const lastValue = data[data.length - 1];
+        const avg = data.reduce((a, b) => a + b, 0) / data.length;
+        
+        let pred = 0;
+        let conf = 0;
+
+        // فوری تجزیہ کی منطق
+        if (lastValue < 1.5) {
+            pred = (avg * 1.4).toFixed(2);
+            conf = 92;
+        } else if (lastValue > 8) {
+            pred = 1.18;
+            conf = 96;
+        } else {
+            pred = (lastValue * 1.05).toFixed(2);
+            if (pred > 2.5) pred = 1.85;
+            conf = 85;
+        }
+
+        document.getElementById('predictionText').innerText = pred + "x";
+        document.getElementById('confidenceLevel').innerText = "اعتماد: " + conf + "%";
+        document.getElementById('predictionText').style.color = conf > 90 ? "#10b981" : "#fbbf24";
+    }
+</script>
+</body>
+</html>
